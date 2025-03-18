@@ -1,0 +1,244 @@
+1.创建一个画布，将Render Mode设置为Screen Space - Camera，然后设置一个相机，该相机Cull Mask设置为UI，此时将画布的Layer设置为UI
+在画布下创建UI元素，即使该UI元素的Layer不为UI，也会被相机拍摄，但如果画布Layer不为UI(与相机的Cull Mask不一致)，即使UI元素Layer为UI，也不会被相机拍摄到
+(注意：画布下还可以创建其他画布，也遵循这个规则)
+
+2.只有virtual、abstract方法可以被override(重写)，一个方法如果被隐藏(子类方法名与父类一样，需要使用new关键字)，那么通过父类引用调用的
+是父类的方法，通过子类引用则调用的是子类方法
+
+3.Monobehaviour生命周期中，子类继承父类，运行unity后，如果子类隐藏(new)或重写(override)了父类中的生命周期方法，运行游戏后，父类中
+的生命周期方法不会执行，代码如下
+public class MonstersBase : MonoBehaviour
+{
+    protected virtual void Awake()
+    {
+        Debug.Log("base");
+    }
+}
+ 
+public class Goblin : MonstersBase
+{
+    new void Awake()//protected override void Awake()
+    {
+        Debug.Log("derivative");
+    }
+}
+若没有隐藏(new)或重写(override)，运行游戏后，父类中的Awake()会执行
+
+4.字典的TryGetValue方法，var类型为字典中值的类型
+Dictionary<int,float> dicMoney;
+if (dicMoney.TryGetValue(20, out var value))
+{
+    float a = value;
+}
+
+5.DOTween.DOPath()方法
+    public static TweenerCore<Vector3, Path, PathOptions> DOPath(
+      this Transform target,
+      Vector3[] path,
+      float duration,
+      PathType pathType = PathType.Linear,
+      PathMode pathMode = PathMode.Full3D,
+      int resolution = 10,
+      Color? gizmoColor = null)
+    {
+      if (resolution < 1)
+        resolution = 1;
+      TweenerCore<Vector3, Path, PathOptions> tweenerCore = DOTween.To<Vector3, Path, PathOptions>(PathPlugin.Get(), (DOGetter<Vector3>) (() => target.position), (DOSetter<Vector3>) (x => target.position = x), new Path(pathType, path, resolution, gizmoColor), duration).SetTarget<TweenerCore<Vector3, Path, PathOptions>>((object) target);
+      tweenerCore.plugOptions.mode = pathMode;
+      return tweenerCore;
+    }
+参数解析
+ 
+Vector3[] path:
+	类型: Vector3[]
+	含义: 一个 Vector3 数组，表示路径的关键点（局部坐标系下的点）。
+	物体会沿着这些点的顺序移动。
+float duration:
+	类型: float
+	含义: 动画的总持续时间（以秒为单位）。
+	决定物体沿路径移动所花费的时间。
+PathType pathType (可选):
+	类型: PathType
+	默认值: PathType.CatmullRom
+	含义: 决定路径的类型。
+	PathType.Linear: 路径是直线段连接的。
+	PathType.CatmullRom: 使用 Catmull-Rom 样条曲线生成平滑路径。
+PathMode pathMode (可选):
+	类型: PathMode
+	默认值: PathMode.Full3D
+	含义: 决定物体沿路径移动时的旋转模式。
+	PathMode.Ignore: 忽略路径的旋转，只移动位置。
+	PathMode.Full3D: 物体会跟随路径的方向进行旋转（适合 3D 场景）。
+	PathMode.TopDown2D: 适合 2D 场景，物体只在 X-Y 平面旋转。
+	PathMode.Sidescroller2D: 适合横版 2D 场景，物体只在 X-Z 平面旋转。
+int resolution (可选):
+	类型: int
+	默认值: 10
+	含义: 决定路径的分辨率（仅对非线性路径有影响）。
+	数值越高，路径越平滑，但计算量也会增加。
+Color? gizmoColor (可选):
+	类型: Color?
+	默认值: null
+	含义: 设置路径在编辑器中显示的调试颜色（Gizmos）。
+	
+6.DOTween.DoJump()方法
+public static Sequence DOJump(
+      this Transform target,
+      Vector3 endValue,
+      float jumpPower,
+      int numJumps,
+      float duration,
+      bool snapping = false)
+    {
+      if (numJumps < 1)
+        numJumps = 1;
+      float startPosY = target.position.y;
+      float offsetY = -1f;
+      bool offsetYSet = false;
+      Sequence s = DOTween.Sequence();
+      Tween yTween = (Tween) DOTween.To((DOGetter<Vector3>) (() => target.position), (DOSetter<Vector3>) (x => target.position = x), new Vector3(0.0f, jumpPower, 0.0f), duration / (float) (numJumps * 2)).SetOptions(AxisConstraint.Y, snapping).SetEase<Tweener>(Ease.OutQuad).SetRelative<Tweener>().SetLoops<Tweener>(numJumps * 2, LoopType.Yoyo).OnStart<Tweener>((TweenCallback) (() => startPosY = target.position.y));
+      s.Append((Tween) DOTween.To((DOGetter<Vector3>) (() => target.position), (DOSetter<Vector3>) (x => target.position = x), new Vector3(endValue.x, 0.0f, 0.0f), duration).SetOptions(AxisConstraint.X, snapping).SetEase<Tweener>(Ease.Linear)).Join((Tween) DOTween.To((DOGetter<Vector3>) (() => target.position), (DOSetter<Vector3>) (x => target.position = x), new Vector3(0.0f, 0.0f, endValue.z), duration).SetOptions(AxisConstraint.Z, snapping).SetEase<Tweener>(Ease.Linear)).Join(yTween).SetTarget<Sequence>((object) target).SetEase<Sequence>(DOTween.defaultEaseType);
+      yTween.OnUpdate<Tween>((TweenCallback) (() =>
+      {
+        if (!offsetYSet)
+        {
+          offsetYSet = true;
+          offsetY = s.isRelative ? endValue.y : endValue.y - startPosY;
+        }
+        Vector3 position = target.position;
+        position.y += DOVirtual.EasedValue(0.0f, offsetY, yTween.ElapsedPercentage(), Ease.OutQuad);
+        target.position = position;
+      }));
+      return s;
+    }
+参数解析
+
+endValue — 最终到达的坐标
+jumpPower — 跳跃的强度(跳跃最大高度为：endValue.y + jumpPower)
+numJumps — 总共的跳跃次数
+duration — 持续时间
+snapping — 是否将所有的值平滑的转换为整数
+
+7.在UI操作中，创建一个画布，CanA，CanA下创建两个挂载了Canvas组件的UI游戏物体SubA，SubB，现在，这两个子物体层级关系通过以下规则确定：
+	a.SortingLayer不同：SortingLayer层越大(Default为默认，层级最小)，代表其深度越深，将会比SortingLayer层小的游戏物体后渲染，从而挡住
+SortingLayer层小的游戏物体
+	b.SortingLayer相同：SortingLayer的的值越大(0为默认，最小)，代表其深度越深......
+	
+8.渲染先后的决定因素：
+	a.Camera的Depth，Depth越深，表示该Camera渲染深度越深，越往后渲染
+	b.SortingLayer层
+	c.SortingLayer层的数值
+	
+9.rider断点
+Step Into (F11)
+逐层潜入函数：如果当前行有函数调用，会进入该函数内部的第一行代码。
+示例：
+
+var result = CalculateSum(3, 5); // 按 F11 会跳进 CalculateSum 方法内部
+Smart Step Into (Alt + Shift + F11)
+智能选择潜入：当一行代码包含多个函数调用时，允许手动选择要进入的特定函数。
+示例：
+
+PrintMessage(GetUserName().ToUpper()); // 按快捷键会弹出选项：进入 GetUserName() 还是 ToUpper()
+Step Out (Shift + F11)
+快速跳出当前函数：立即执行完当前函数的剩余代码，并回到调用它的地方。
+示例：
+
+void MethodA() {
+    MethodB(); // 在 MethodB 内部按 Shift+F11，会直接返回到这里
+}
+Step Over (F10)
+平级执行不深入：执行当前行代码，但不会进入任何函数内部，直接跳到下一行。
+示例：
+
+var a = 1;      // 按 F10 执行本行
+var b = a * 2;  // 直接跳到这里
+Force Step Over (Alt + Shift + F8)
+强制跳过不可调试代码：即使遇到属性、运算符或无法调试的代码，也强制跳过。
+示例：
+
+var list = new List<int> { 1, 2 }; // 调试时想跳过集合初始化器的内部实现
+Run to Cursor (Ctrl + F10)
+瞬移断点：从当前位置直接运行到光标所在行，并暂停（会触发路径上的其他断点）。
+示例：
+在 100 行代码处按 Ctrl+F10，程序会快速执行到 100 行并暂停。
+
+Run to Cursor Non-Stop (Ctrl + Alt + F9)
+无视断点直达目标：运行到光标行，但忽略路径上所有其他断点。
+示例：
+当代码中有多个断点时，用此功能可直达目标行不被干扰。
+
+Skip to Cursor (Ctrl + Shift + F10)
+代码跳跃执行：直接让程序"瞬移"到光标行，中间代码被视为未执行（变量状态不会改变）。
+示例：
+在调试时发现某段循环代码没问题，想直接跳到循环后的第 50 行，但中间代码不会实际执行。
+
+实际应用场景对比：
+
+调试递归函数时，用 Step Into 逐层深入，用 Step Out 快速返回上层。
+
+当遇到 obj?.MethodA()?.MethodB() 这类链式调用时，用 Smart Step Into 精确选择要调试的方法。
+
+调试耗时操作（如文件读写）时，用 Force Step Over 避免进入系统库的内部实现。
+
+
+10.RectTransformUtility.ScreenPointToLocalPointInRectangle方法
+源码：
+//Does the RectTransform contain the screen point as seen from the given camera? 
+True if the point is inside the rectangle.
+
+public static bool ScreenPointToLocalPointInRectangle(
+      RectTransform rect,
+      Vector2 screenPoint,
+      Camera cam,
+      out Vector2 localPoint)
+    {
+      localPoint = Vector2.zero;
+      Vector3 worldPoint;
+      if (!RectTransformUtility.ScreenPointToWorldPointInRectangle(rect, screenPoint, cam, out worldPoint))
+        return false;
+      localPoint = (Vector2) rect.InverseTransformPoint(worldPoint);
+      return true;
+    }
+参数解析
+rect — The RectTransform to test with.用于测试的RectTransform
+screenPoint — The screen point to test.屏幕上的点
+cam — The camera from which the test is performed from. (Optional)执行测试的摄像机
+localPoint - 将屏幕上的点转换为的相机对应的UI坐标
+
+举例：有一个画布A，参考分表率为1280 * 720，有一个拍摄画布A的相机camA，rect锚点设置在画布的左下角作为第一个参数rectA
+情况a.屏幕分辨率为1600 * 900，画布适应屏幕的方式为Expand(放大，当屏幕分辨率改变时，画布将会让长或宽放大来适应屏幕，此时画布上的UI元素相对于画布将会变小)
+screenPoint为(788，446)，调用方法camA.ScreenPointToLocalPointInRectangle(rectA,screenPoint,cameA,out vec2)
+得到vec2的值为(x，y)
+步骤，由于1600 / 900 = 1280 / 720，所以画布的大小比例保持不变，拍摄画布的相机尺寸也保持不变(由于画布的缩放方式为Shrink，将会放大长或者宽)，
+传入的值需要等比例进行缩放：
+x * 1600 / 788 = 1280
+y * 900 / 446 = 720
+最终得到vec2(631,356)
+
+情况b.屏幕分辨率为2400 * 1080，画布适应屏幕的方式为Expand(放大，当屏幕分辨率改变时，画布将会让长或宽放大来适应屏幕，此时画布上的UI元素相对于画布将会变小)
+screenPoint为(2400，689)，调用方法camA.ScreenPointToLocalPointInRectangle(rectA,screenPoint,cameA,out vec2)
+得到vec2的值为(x，y)
+2400 / 1080 > 1280 / 720，屏幕分辨率大于画布参考分表率，画布横纵比例将会变大，变为1600 * 720(由于画布的缩放方式为Shrink，将会放大长或者宽),
+此时将传入的值进行等比例缩放：
+x * 2400 / 2400 = 1600
+y * 1080 / 689 = 720
+最终得到vec2(1600,459)
+
+情况c.屏幕分辨率为2400 * 1080，画布适应屏幕的方式为Shrink(缩小，当屏幕分辨率改变时，画布将会让长或宽缩小来适应屏幕，此时画布上的UI元素相对于画布将会变大)
+screenPoint为(1971，1032)，调用方法camA.ScreenPointToLocalPointInRectangle(rectA,screenPoint,cameA,out vec2)
+得到vec2的值为(x，y)
+2400 / 1080 > 1280 / 720，屏幕分辨率大于画布参考分表率，画布横纵比例将会变大，变1280 * 576(由于画布的缩放方式为Shrink，将会缩小长或者宽),
+此时将传入的值进行等比例缩放：
+x * 2400 / 1971 = 1280
+y * 1080 / 1032 = 576
+最终得到vec2(1051,550)
+
+情况d.屏幕分辨率为1280 * 1080，画布适应屏幕的方式为Shrink(缩小，当屏幕分辨率改变时，画布将会让长或宽缩小来适应屏幕，此时画布上的UI元素相对于画布将会变大)
+screenPoint为(624，587)，调用方法camA.ScreenPointToLocalPointInRectangle(rectA,screenPoint,cameA,out vec2)
+得到vec2的值为(x，y)
+1280 / 1080 < 1280 / 720，屏幕分辨率大于画布参考分表率，画布横纵比例将会变小，853 * 720(由于画布的缩放方式为Shrink，将会缩小长或者宽),
+此时将传入的值进行等比例缩放：
+x * 1280 / 624 = 853
+y * 1080 / 587 = 720
+最终得到vec2(461, 391)
