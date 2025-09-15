@@ -255,20 +255,24 @@ UI Scale Mode：
 	b.Expand
 	Reference Resolution:720,1280 => 720/1280 = 0.5625
 	Target Resolution:x,y => AR = x/y
-	if(AR>0.5625)//宽高比变大，宽度将会增加，同时高度会保持不变
+	if(AR>=0.5625)//宽高比变大，宽度将会增加，同时高度会保持不变
 	{
 		Canvas.Height = 1280;
 		//此时，如果通过让x↑，使得AR↑，Canvas将只会让Canvas的x↑来适应屏幕，而不改变Scale,
-		//如果让通过让y↓，使得AR↑，由于ScaleMode为Expand，所以Canvas不会让Canvas的y↓来适应屏幕，而是会让Canvas的x↑从而使得Canvas的x/y = AR的x/y
-		//同时改变Canvas的Scale，使得Canvas的宽高在缩放后，等于AR的x和y，Scale = y / 1280
+		//如果让通过让y↓，使得AR↑，由于ScaleMode为Expand，所以Canvas不会让Canvas的y↓来适应屏幕，还是会和上述操作一样，让Canvas的x↑
+		//从而使得Canvas的x/y = AR的x/y，同时改变Canvas的Scale，使得Canvas的宽高在缩放后，等分别于AR的x和y
+
+		Scale = y / 1280
 		Canvas.Width = x × Scale;
 	}
-	if(AR<0.5625)//宽高比变大，高度将会增加，同时宽度会保持不变
+	if(AR<=0.5625)//宽高比变小，高度将会增加，同时宽度会保持不变
 	{
 		Canvas.Width = 720;
-		//此时，Canvas的Scale会根据x的值进行调整，x↑，Scale↑，且y改变不会改变Scale
+		//此时，如果通过让y↑，使得AR↓，Canvas将只会让Canvas的y↑来适应屏幕，而不改变Scale,
+		//如果让通过让x↓，使得AR↓，由于ScaleMode为Expand，所以Canvas不会让Canvas的x↓来适应屏幕，而是会让Canvas的y↑从而使得Canvas的x/y = AR的x/y
+		//同时改变Canvas的Scale，使得Canvas的宽高在缩放后，分别等于AR的x和y，Scale = y / 1280
 		Scale = x / 720;
-		Canvas.Height = y*Scale;
+		Canvas.Height = y × Scale;
 	}
 	
 	c.Shrink
@@ -292,7 +296,14 @@ UI Scale Mode：
 	
 	
 11.在unity开发中，一个Canvas下的UI元素会被合并成一个批次(Batch)，也就是说一个Canvas下如果存在多个UI元素(Image,Button,Text....)，那么
-此时
+此时这些UI元素的Z轴坐标会具有一个中心点，例如：imgA、imgB、imgC三个的Z轴坐标分别为-200、0、200(值越小，距离相机越近)。有一个MeshRender组件
+的3D游戏物体，Z轴坐标为100，由于100大于3个UI元素的平均值0，所以此时3D物体距离相机更远，一个批次的UI元素距离相机更近，
+3D游戏物体与UI元素渲染先后规则：
+a.UI元素Z轴平均值大于(距离相机更远)3D物体Z轴坐标值，3D物体始终会遮挡所有UI元素
+b.UI元素Z轴平均值小于(距离相机更近)3D物体Z轴坐标值，此时UI元素与3D物体渲染顺序由Z轴值决定:
+单个UI元素的Z轴坐标大于(距离相机更远)3D物体的Z轴坐标，3D物体会遮挡UI元素
+单个UI元素的Z轴坐标小于(距离相机更近)3D物体的Z轴坐标，UI元素会遮挡3D物体
+
 
 12.RawImage组件的UV Rect属性(X,Y,W,H)用法
 假设有一张100×100的Texture
@@ -304,7 +315,7 @@ Y:默认为0，表示垂直方向上(从下到上)RawImage组件采用Texture的
 (例如Y=-0.1，表示RawImage组件将不会显示纹理后面10%的部分，直接显示前90%)
 W:默认为1，表示RawImage组件在水平方向上(从左到右)取用纹理的比例
 (例如W=0.5，表示RawImage组件只取用50%。剩下的50%可以通过修改X的值来查看)
-由于此时RawImage组件只会显示Texture默认是100×100，当修改W为0.5，此时RawImage组件只会显示Texture前面的50%，但是RawImage组件最开始显示整张
-图片，Width为100，现在只显示了半张，就会导致
+由于此时RawImage组件只会显示50%，Texture默认是100×100，当修改W为0.5，此时RawImage组件只会显示Texture前面的50%，但是RawImage组件最开始显示整张
+图片，Width为100，现在只显示了半张，就会出现一种情况：显示半张图片，宽度、高度为100×100，此时水平方向会出现拉升效果
 H:默认为1，表示RawImage组件在水平方向上(从下到上)取用纹理的比例
 (例如W=0.5，表示RawImage组件只取用50%。剩下的50%可以通过修改Y的值来查看)
