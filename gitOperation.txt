@@ -1,7 +1,7 @@
 git指令及其解释：
 
 1.配置git信息(不然无法正常使用)
-git config --global(local) user.name "Your Name"			//设置全局（局部）用户名
+git config --global(local) user.name "Your Name"			//设置全局（局部当前仓库）用户名
 git config --global(local) user.email "email@example.com"	//设置全局（局部）邮箱地址
 
 2.远程有仓库，克隆，切换分支等操作
@@ -10,8 +10,8 @@ git switch <dev>				//切换到dev分支
 git switch -c <dev>				//切换到dev分支，如果没有dev，则创建dev分支
 git switch -c dev <origin/dev>	//切换到dev分支，并且将远程仓库的dev分支设置为上游分支
 
-
-7.本地有代码，在本地创建仓库并与远程仓库相互关联
+3.git remote，本地、远程仓库相关操作
 git init						//将该文件夹初始化为一个git仓库
-git remote add origin <url>		//关联远程仓库
-git push -u origin <branchName> //-u 将<branchName>设置为上游分支
+git remote set-url origin <url>	//设置远程仓库
+git remote add origin <url>		//添加一个远程仓库
+git push -u origin <branchName> //将<branchName>设置为上游分支
